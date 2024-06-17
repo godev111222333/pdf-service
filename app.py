@@ -1,20 +1,22 @@
-import yaml
+import uuid
+import boto3
 from flask import Flask, request, jsonify
 from pypdf import PdfReader, PdfWriter
 
+from config import Config
+
 app = Flask(__name__)
-
-global config
-
-with open("config.yml") as f:
-    config = yaml.safe_load(f)
+global_config = Config("config.yml")
+s3_client = boto3.client("s3", region_name=global_config.aws['region'],
+                         aws_access_key_id=global_config.aws['access_key'],
+                         aws_secret_access_key=global_config.aws['secret_access_key'])
 
 
 @app.route('/render_customer_contract', methods=['POST'])
 def render_customer_contract():
     payload = request.get_json()
 
-    reader = PdfReader(config['customer_contract'])
+    reader = PdfReader(global_config.customer_contract)
     writer = PdfWriter()
     writer.append(reader)
 
@@ -24,11 +26,16 @@ def render_customer_contract():
             payload
         )
 
-    # TODO: upload file to S3 storage
-    with open("out.pdf", "wb") as output_stream:
+    with open("/tmp/out.pdf", "wb") as output_stream:
         writer.write(output_stream)
 
-    return jsonify({"url": "awss3.com"})
+    with open("/tmp/out.pdf", "rb") as input_stream:
+        filename = uuid.uuid4()
+        s3_client.put_object(Body=input_stream, Bucket=global_config.aws['bucket'],
+                             Key=str(filename) + ".pdf",
+                             ACL="public-read")
+
+    return jsonify({"uuid": filename})
 
 
 if __name__ == "__main__":
