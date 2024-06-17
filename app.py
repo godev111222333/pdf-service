@@ -12,11 +12,10 @@ s3_client = boto3.client("s3", region_name=global_config.aws['region'],
                          aws_secret_access_key=global_config.aws['secret_access_key'])
 
 
-@app.route('/render_customer_contract', methods=['POST'])
-def render_customer_contract():
+def render_with_type(template=global_config.customer_contract):
     payload = request.get_json()
 
-    reader = PdfReader(global_config.customer_contract)
+    reader = PdfReader(template)
     writer = PdfWriter()
     writer.append(reader)
 
@@ -36,6 +35,16 @@ def render_customer_contract():
                              ACL="public-read")
 
     return jsonify({"uuid": filename})
+
+
+@app.route('/render_customer_contract', methods=['POST'])
+def render_customer_contract():
+    return render_with_type(global_config.customer_contract)
+
+
+@app.route('/render_partner_contract', methods=['POST'])
+def render_partner_contract():
+    return render_with_type(global_config.partner_contract)
 
 
 if __name__ == "__main__":
